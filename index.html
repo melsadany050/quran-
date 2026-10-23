@@ -3,7 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>القرآن الكريم</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0d1927">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-512.png">
+<title>NoorAlhuda</title>
 <link href="https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Scheherazade+New:wght@500;700&family=Noto+Naskh+Arabic:wght@500;700&family=Reem+Kufi:wght@500;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#fbf8f1;--page:#fffdf8;--ink:#111;--muted:#6b6b6b;--bar:#e6f0f7;--line:#cfd8df;--accent:#2f6f9f;--hl:rgba(47,111,159,.14);
@@ -126,21 +130,40 @@ document.querySelectorAll("#sw i").forEach(i=>i.onclick=()=>{S.accent=i.dataset.
 $("#cc").oninput=e=>{S.accent=e.target.value;apply();save()};
 $("#font").onchange=e=>{S.font=e.target.value;apply();save()};
 $("#size").oninput=e=>{S.size=+e.target.value;apply();save()};
+function parseQ(j){
+ const out={};
+ const T=x=>typeof x==="string"?x:(x&&(x.text??x.text_uthmani??x.verse_text??x.content??x.arabic??x.ar))||"";
+ const N=(o,ks)=>{for(const k of ks)if(o[k]!=null&&o[k]!==""&&!isNaN(+o[k]))return +o[k]};
+ const L=o=>{for(const k of ["verses","ayahs","ayat","aya","ayas"])if(Array.isArray(o[k]))return o[k]};
+ let r=j;
+ for(const k of ["data","quran","surahs","chapters"])if(r&&!Array.isArray(r)&&typeof r[k]==="object"&&r[k]!==null)r=r[k];
+ if(Array.isArray(r)){
+  if(r.length&&r.every(e=>Array.isArray(e))){r.forEach((a,i)=>{out[i+1]=a.map(T)})}
+  else if(r.length&&typeof r[0]==="object"&&L(r[0])){r.forEach((e,i)=>{const n=N(e,["number","id","index","sura","surah","chapter"])||i+1;out[n]=L(e).map(T)})}
+  else{r.forEach(e=>{let s=N(e,["sura","surah","chapter","surah_number","sura_number","chapter_id"]),a=N(e,["aya","ayah","verse","ayah_number","verse_number","verse_id"]);
+   if((!s||!a)&&typeof e.verse_key==="string"){const p=e.verse_key.split(":");s=+p[0];a=+p[1]}
+   const t=T(e);if(s&&a&&t)(out[s]=out[s]||[])[a-1]=t})}
+ }else if(r&&typeof r==="object"){
+  Object.keys(r).forEach(k=>{const n=parseInt(k.replace(/\D/g,""));const v=r[k];if(!n)return;
+   if(Array.isArray(v))out[n]=v.map(T);
+   else if(v&&typeof v==="object"){const l=L(v);out[n]=l?l.map(T):Object.keys(v).sort((a,b)=>a-b).map(x=>T(v[x]))}})
+ }
+ Object.keys(out).forEach(k=>{out[k]=Array.from(out[k],x=>x||"")});
+ return out}
 $("#bImp").onclick=()=>$("#file").click();
 $("#file").onchange=async e=>{
  const f=e.target.files[0];if(!f)return;
  try{
-  const j=JSON.parse(await f.text()),out={};
-  if(Array.isArray(j)&&j.length&&typeof j[0]==="object"&&!Array.isArray(j[0])){
-   j.forEach(r=>{const s=r.sura??r.surah??r.chapter,a=r.aya??r.ayah??r.verse,t=r.text;if(s&&a&&t){(out[s]=out[s]||[])[a-1]=t}})
-  }else if(Array.isArray(j)){j.forEach((a,i)=>{out[i+1]=a.map(x=>typeof x==="string"?x:x.text)})}
-  else{Object.keys(j).forEach(k=>{out[+k]=j[k].map(x=>typeof x==="string"?x:x.text)})}
+  const j=JSON.parse(await f.text()),out=parseQ(j);
   // remove the basmala glued to verse 1 (except Al-Fatiha)
   Object.keys(out).forEach(k=>{if(+k===1)return;const w=(out[k][0]||"").split(" ");
    if(w.length>4&&norm(w.slice(0,4).join(" "))==="بسم الله الرحمن الرحيم")out[k][0]=w.slice(4).join(" ")});
   if(!Object.keys(out).length)throw 0;
-  DATA=out;store.set("qdata",out);$("#shSet").classList.remove("open");render();
- }catch(err){alert("تعذّر قراءة الملف. تأكد من الصيغة.")}
+  const cnt=Object.keys(out).length;
+  try{localStorage.setItem("qdata",JSON.stringify(out))}catch(x){alert("تم التحميل لكن تعذّر حفظه على الجهاز (مساحة التخزين ممتلئة).")}
+  alert("تم استيراد "+cnt+" سورة"+(cnt<114?" (أقل من 114، تأكد من اكتمال الملف)":""));
+  DATA=out;$("#shSet").classList.remove("open");render();
+ }catch(err){alert("تعذّر قراءة الملف: صيغة الـ JSON غير معروفة أو الملف فارغ.")}
  e.target.value=""};
 $("#bNet").onclick=async()=>{
  const msg=$("#netMsg");msg.textContent="جارٍ التحميل…";
@@ -155,6 +178,7 @@ $("#bNet").onclick=async()=>{
  }catch(e){msg.textContent="تعذّر التحميل. افتح الملف مباشرة على جهازك (وليس من المعاينة) وتأكد من الاتصال بالإنترنت، أو استخدم الاستيراد من ملف JSON."}
 };
 apply();render();
+if("serviceWorker"in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 </script>
 </body>
 </html>
